@@ -1,0 +1,25 @@
+node_modules
+.pnpm-store
+.DS_Store
+dist
+dist-ssr
+*.local
+update.json
+scripts/_env.sh
+.vscode
+.tool-versions
+.idea
+.old
+.eslintcache
+.changelog_backups
+target
+.vfox.toml
+.vfox
+.claude
+.zed
+
+# Local UI review evidence and private application data
+.impeccable/review/
+app-data/
+*.app
+*.dmg

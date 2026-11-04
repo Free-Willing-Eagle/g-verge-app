@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T13:19:25.470007+00:00",
+  "title": "Design System: G Verge",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "native-flat",
+        "value": "none",
+        "purpose": "All 25 MUI elevation levels; global styles also suppress shadows."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-state",
+        "value": "250ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Installed MUI button background, border and color transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "0px"
+      },
+      {
+        "name": "sm",
+        "value": "650px"
+      },
+      {
+        "name": "md",
+        "value": "900px"
+      },
+      {
+        "name": "lg",
+        "value": "1200px"
+      },
+      {
+        "name": "xl",
+        "value": "1536px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Contained action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Native light-theme extraction, not the preview harness.",
+      "html": "<button class=\"ds-primary\">Сохранить выбор</button>",
+      "css": ".ds-primary{font-family:-apple-system,BlinkMacSystemFont,\"Microsoft YaHei UI\",\"Microsoft YaHei\",Roboto,\"Helvetica Neue\",Arial,sans-serif,\"Apple Color Emoji\";font-size:14px;font-weight:500;line-height:1.75;text-transform:uppercase;border-radius:4px;cursor:pointer;transition:background-color 250ms cubic-bezier(0.4,0,0.2,1);background:#007AFF;color:#fff;border:0;padding:6px 16px;}.ds-primary:hover{background:rgb(0,85,178);}.ds-primary:focus-visible{outline:none;box-shadow:none}.ds-primary:active{box-shadow:none}"
+    },
+    {
+      "name": "Outlined action",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Native light-theme extraction, not the preview harness.",
+      "html": "<button class=\"ds-outlined\">Открыть Tailscale</button>",
+      "css": ".ds-outlined{font-family:-apple-system,BlinkMacSystemFont,\"Microsoft YaHei UI\",\"Microsoft YaHei\",Roboto,\"Helvetica Neue\",Arial,sans-serif,\"Apple Color Emoji\";font-size:14px;font-weight:500;line-height:1.75;text-transform:uppercase;border-radius:4px;cursor:pointer;transition:background-color 250ms cubic-bezier(0.4,0,0.2,1);background:transparent;color:#007AFF;border:1px solid rgba(0,122,255,.5);padding:5px 15px;}.ds-outlined:hover{background:rgba(0,122,255,.04);border-color:#007AFF;}.ds-outlined:focus-visible{outline:none;box-shadow:none}.ds-outlined:active{box-shadow:none}"
+    },
+    {
+      "name": "Text action",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Native light-theme extraction, not the preview harness.",
+      "html": "<button class=\"ds-text\">Добавить программу</button>",
+      "css": ".ds-text{font-family:-apple-system,BlinkMacSystemFont,\"Microsoft YaHei UI\",\"Microsoft YaHei\",Roboto,\"Helvetica Neue\",Arial,sans-serif,\"Apple Color Emoji\";font-size:14px;font-weight:500;line-height:1.75;text-transform:uppercase;border-radius:4px;cursor:pointer;transition:background-color 250ms cubic-bezier(0.4,0,0.2,1);background:transparent;color:#007AFF;border:0;padding:6px 8px;}.ds-text:hover{background:rgba(0,122,255,.04);}.ds-text:focus-visible{outline:none;box-shadow:none}.ds-text:active{box-shadow:none}"
+    },
+    {
+      "name": "Named VPN selector",
+      "kind": "input",
+      "refersTo": "route-select",
+      "description": "Small outlined field. Selection remains a draft until saved.",
+      "html": "<label class=\"ds-field\"><span>Интернет для программы</span><select aria-label=\"Интернет для программы\"><option>Мой VPN</option><option>Без VPN</option></select></label>",
+      "css": ".ds-field{position:relative;display:block;width:260px;font-family:-apple-system,BlinkMacSystemFont,\"Microsoft YaHei UI\",\"Microsoft YaHei\",Roboto,\"Helvetica Neue\",Arial,sans-serif,\"Apple Color Emoji\";color:#000}.ds-field span{position:absolute;left:10px;top:-8px;padding:0 4px;background:#ECECEC;font-size:12px;color:#3C3C4399}.ds-field select{width:100%;font:inherit;font-size:16px;background:transparent;border:1px solid rgba(0,0,0,.23);border-radius:4px;padding:8.5px 14px;color:inherit}.ds-field select:hover{border-color:#000}.ds-field select:focus-visible{outline:none;border:2px solid #007AFF;padding:7.5px 13px}"
+    },
+    {
+      "name": "Selected navigation",
+      "kind": "nav",
+      "refersTo": "navigation-item",
+      "description": "Expanded ordinary sidebar labels; icons remain in the React source.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Разделы\"><button aria-current=\"page\">Программы</button><button>Мои VPN</button><button>Удаленные компьютеры</button><button>Настройки</button></nav>",
+      "css": ".ds-nav{width:200px;font-family:-apple-system,BlinkMacSystemFont,\"Microsoft YaHei UI\",\"Microsoft YaHei\",Roboto,\"Helvetica Neue\",Arial,sans-serif,\"Apple Color Emoji\"}.ds-nav button{display:block;width:180px;margin:4px 10px;padding:8px;font:inherit;font-weight:700;text-align:center;color:#000;background:transparent;border:0;border-radius:8px;cursor:pointer}.ds-nav button[aria-current]{color:#1f1f1f;background:rgba(0,122,255,.15)}.ds-nav button:hover{background:rgba(0,0,0,.04)}.ds-nav button[aria-current]:hover{background:rgba(0,122,255,.15)}.ds-nav button:focus-visible{outline:none;box-shadow:none}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Existing Clash Verge Rev desktop utility",
+    "overview": "G Verge retains the existing Clash Verge Rev desktop world. The owner chose the name and asked to simplify the existing MUI application. No separate creative metaphor or replacement visual identity is established.",
+    "keyCharacteristics": [
+      "Native system typography with inherited MUI controls.",
+      "Blue actions against neutral surfaces.",
+      "Flat sections with explicit state messages."
+    ],
+    "rules": [
+      {
+        "name": "Theme source rule",
+        "body": "Native light/dark colors come from _theme.tsx. In system mode Tauri reads the OS theme and listens for changes; the native window follows the OS.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do reuse the actual MUI theme and existing shell components.",
+      "Do show a named VPN separately from its country or connection.",
+      "Do explain inactive routing and unsaved changes in readable Russian.",
+      "Do retain native light, dark and system behavior."
+    ],
+    "donts": [
+      "Don't promote the preview harness into native visual authority.",
+      "Don't expose profiles, scripts or merge configuration in ordinary navigation.",
+      "Don't show DIRECT/REJECT identifiers as ordinary choices.",
+      "Don't claim a changed selector is already saved or active.",
+      "Don't add a replacement identity or decorative card system during this simplification."
+    ]
+  }
+}

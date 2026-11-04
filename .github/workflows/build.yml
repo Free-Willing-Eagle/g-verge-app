@@ -1,0 +1,106 @@
+name: Build
+
+# A pushed tag v* builds the Mac and Windows apps and publishes them under fixed names,
+# so the download links in README.md always point at the newest version.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  HUSKY: 0
+  VITE_G_VERGE_EDITION: shared
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft \
+              --title "G Verge $GITHUB_REF_NAME" \
+              --notes "Как установить: см. README. How to install: see README."
+
+  build:
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: G-Verge-Mac.dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: G-Verge-Windows-Setup.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.1'
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          shared-key: ${{ matrix.target }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26.13.0'
+          cache: pnpm
+
+      - name: Install dependencies and engine
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm prebuild ${{ matrix.target }}
+
+      - name: Build Mac app
+        if: runner.os == 'macOS'
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'
+        run: |
+          pnpm tauri build --target ${{ matrix.target }} --bundles app
+          app="target/${{ matrix.target }}/release/bundle/macos/G Verge.app"
+          # Without a paid Apple certificate the app is signed locally; Gatekeeper then offers "Open Anyway".
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir dmg
+          cp -R "$app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "G Verge" -srcfolder dmg -ov -format UDZO "${{ matrix.asset }}"
+
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'
+        run: |
+          pnpm tauri build --target ${{ matrix.target }} --bundles nsis
+          cp target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe "${{ matrix.asset }}"
+
+      - name: Upload to release
+        shell: bash
+        run: gh release upload "$GITHUB_REF_NAME" "${{ matrix.asset }}" --clobber --repo "$GITHUB_REPOSITORY"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
