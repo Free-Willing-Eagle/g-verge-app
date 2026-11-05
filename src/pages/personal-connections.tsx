@@ -279,7 +279,7 @@ export default function PersonalConnectionsPage() {
               {error && <Alert severity="error">{error}</Alert>}
               <TextField
                 label="Название VPN"
-                placeholder="Например, Мой VPN"
+                placeholder="Например, VPN 1"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required

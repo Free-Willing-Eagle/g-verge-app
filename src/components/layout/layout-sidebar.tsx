@@ -30,7 +30,7 @@ export const LayoutSidebar = ({ isDark, isCollapsed }: LayoutSidebarProps) => {
         style={{ flex: '0 0 76px', height: 76, padding: '0 20px' }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box style={{ width: 32, height: 32, flex: '0 0 32px' }}>
+          <Box style={{ width: 40, height: 40, flex: '0 0 40px' }}>
             <SvgIcon component={isDark ? iconDark : iconLight} inheritViewBox />
           </Box>
           {!isCollapsed && (

@@ -11,14 +11,14 @@ const demoSources = [
   {
     uid: 'main',
     type: 'local',
-    name: 'Мой VPN',
+    name: 'VPN 1',
     file: 'main.yaml',
     updated: 0,
   },
   {
     uid: 'spare',
     type: 'local',
-    name: 'Запасной VPN',
+    name: 'VPN 2',
     file: 'spare.yaml',
     updated: 0,
   },

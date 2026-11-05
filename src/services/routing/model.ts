@@ -395,6 +395,19 @@ export function compileWorkspace(
           }
         : {}),
     },
+    // Browsers look up real IPv6 addresses through their own secure DNS. On networks without IPv6 such a
+    // connection dies after the tunnel accepts it, so the site name from the handshake is dialed instead.
+    sniffer: {
+      enable: true,
+      'parse-pure-ip': true,
+      'override-destination': true,
+      sniff: {
+        HTTP: { ports: [80, '8080-8880'] },
+        TLS: { ports: [443, 8443] },
+        QUIC: { ports: [443, 8443] },
+      },
+      'skip-domain': ['+.ts.net', '+.push.apple.com'],
+    },
     proxies,
     'proxy-providers': providers,
     'proxy-groups': groups,
