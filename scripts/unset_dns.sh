@@ -24,6 +24,8 @@ function dns_of() {
 }
 
 backup_header='# clash-verge-dns-managed'
+# The list set by earlier releases, still restored after an update.
+previous_placeholder=$'114.114.114.114\n223.5.5.5\n1.1.1.1'
 completed_backups=()
 
 function restore_dns() {
@@ -62,7 +64,8 @@ function restore_dns() {
             *) legacy_backup=true ;;
         esac
         # A service no longer on its recorded placeholder was changed by someone else.
-        if [ "$current_dns" = "$1" ] || { [ "$legacy_backup" = true ] && [ "$current_dns" = "114.114.114.114" ]; }; then
+        if [ "$current_dns" = "$1" ] || [ "$current_dns" = "$previous_placeholder" ] ||
+            { [ "$legacy_backup" = true ] && [ "$current_dns" = "114.114.114.114" ]; }; then
             networksetup -setdnsservers "$hardware_port" $original_dns
             if [ "$(dns_of "$hardware_port")" != "$original_dns" ]; then
                 echo "Failed to restore DNS for $hardware_port." >&2

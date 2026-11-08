@@ -114,6 +114,40 @@ mockIPC((command, args) => {
                 target: 'connection-spare',
                 enabled: true,
               },
+              {
+                id: 'demo-google.com',
+                name: 'google.com',
+                match: 'domain',
+                value: 'google.com',
+                target: 'REJECT',
+                enabled: true,
+              },
+              {
+                id: 'demo-store.google.com',
+                name: 'store.google.com',
+                match: 'domain',
+                value: 'store.google.com',
+                target:
+                  'connection-main/node/' +
+                  encodeURIComponent('Великобритания · Лондон'),
+                enabled: true,
+              },
+              {
+                id: 'demo-youtube.com',
+                name: 'youtube.com',
+                match: 'domain',
+                value: 'youtube.com',
+                target: 'connection-spare',
+                enabled: true,
+              },
+              {
+                id: 'demo-госуслуги.рф',
+                name: 'госуслуги.рф',
+                match: 'domain',
+                value: 'xn--c1aapkosapc.xn--p1ai',
+                target: 'DIRECT',
+                enabled: true,
+              },
             ],
           },
         })
@@ -145,6 +179,7 @@ const { default: PersonalRemotePage } = await import('@/pages/personal-remote')
 const { default: PersonalRoutingPage } = await import(
   '@/pages/personal-routing'
 )
+const { default: PersonalSitesPage } = await import('@/pages/personal-sites')
 await initializeLanguage('ru')
 const router = createMemoryRouter([
   {
@@ -152,6 +187,7 @@ const router = createMemoryRouter([
     Component: PreviewLayout,
     children: [
       { index: true, Component: PersonalRoutingPage },
+      { path: 'sites', Component: PersonalSitesPage },
       { path: 'my-connections', Component: PersonalConnectionsPage },
       { path: 'remote-computers', Component: PersonalRemotePage },
       { path: 'preferences', Component: PersonalPreferencesPage },

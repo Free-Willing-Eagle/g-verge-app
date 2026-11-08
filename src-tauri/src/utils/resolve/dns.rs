@@ -11,7 +11,9 @@ use std::{
 use tokio::sync::Mutex;
 
 // Any address routed into TUN works, since dns-hijack answers it; the value only matters if left behind.
-const PLACEHOLDER_DNS: &str = "114.114.114.114\n223.5.5.5\n1.1.1.1";
+// No address may be on Chrome's encrypted DNS upgrade list (1.1.1.1 is): Chrome would then look up sites itself,
+// past fake-ip, and site rules could only rely on the name in the handshake, which ECH hides.
+const PLACEHOLDER_DNS: &str = "114.114.114.114\n223.5.5.5";
 // Scripts run under lifecycle_lock, and networksetup waits for other preference writers without a limit.
 pub(crate) const DNS_SCRIPT_TIMEOUT: Duration = Duration::from_secs(5);
 

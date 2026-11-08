@@ -1,4 +1,4 @@
-import { AddRounded, CloseRounded } from '@mui/icons-material'
+import { AddRounded } from '@mui/icons-material'
 import {
   Alert,
   Autocomplete,
@@ -6,12 +6,8 @@ import {
   Button,
   CircularProgress,
   Divider,
-  FormControlLabel,
-  IconButton,
   Stack,
-  Switch,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material'
 import { useState } from 'react'
@@ -19,11 +15,12 @@ import { useNavigate } from 'react-router'
 
 import { BasePage } from '@/components/base'
 import { RouteChoice } from '@/components/routing/route-choice'
+import { SaveChoiceButton } from '@/components/routing/save-choice-button'
 import { useRoutingWorkspace } from '@/hooks/use-routing-workspace'
 import { useVerge } from '@/hooks/use-verge'
 import { getInstalledApplications } from '@/services/cmds'
 import { useQuery } from '@/services/query-client'
-import { type AppRoute, isSafari, routeRules } from '@/services/routing/model'
+import { isSafari } from '@/services/routing/model'
 import { isWindows } from '@/services/routing/platform'
 import { chooseApplication } from '@/services/routing/workspace'
 
@@ -62,7 +59,6 @@ export default function PersonalRoutingPage() {
     dirty,
     error,
     message,
-    save,
     change,
     isPending,
     loadError,
@@ -75,9 +71,6 @@ export default function PersonalRoutingPage() {
     retry: false,
   })
   const [searching, setSearching] = useState(false)
-  const [site, setSite] = useState('')
-  const [siteError, setSiteError] = useState('')
-  const [siteTarget, setSiteTarget] = useState('DIRECT')
   if (isPending || !draft || !data)
     return (
       <BasePage title="Интернет для программ">
@@ -135,45 +128,8 @@ export default function PersonalRoutingPage() {
     change({ appPaths: [...new Set([...(draft.appPaths ?? []), path])] })
     setSearching(false)
   }
-  const addSite = (event: React.FormEvent) => {
-    event.preventDefault()
-    const rule: AppRoute = {
-      id: crypto.randomUUID(),
-      name: site.trim(),
-      match: 'domain',
-      value: site.trim(),
-      target: siteTarget,
-      enabled: true,
-    }
-    try {
-      routeRules(rule)
-      change({ routes: [...draft.routes, rule] })
-      setSite('')
-      setSiteError('')
-    } catch {
-      setSiteError(
-        'Укажи адрес сайта без https:// и без пути страницы. Например, example.com.',
-      )
-    }
-  }
   return (
-    <BasePage
-      title="Интернет для программ"
-      header={
-        <Button
-          variant="contained"
-          onClick={() => void save()}
-          disabled={
-            busy ||
-            (!dirty &&
-              data.managedUid !== null &&
-              data.currentUid === data.managedUid)
-          }
-        >
-          {busy ? 'Сохраняю…' : 'Сохранить выбор'}
-        </Button>
-      }
-    >
+    <BasePage title="Интернет для программ" header={<SaveChoiceButton />}>
       <Stack spacing={3} inert={busy} sx={{ maxWidth: 960, mx: 'auto', pb: 4 }}>
         <Box>
           <Typography>
@@ -227,22 +183,6 @@ export default function PersonalRoutingPage() {
             />
           </Box>
         </Stack>
-        <Box>
-          <FormControlLabel
-            label="Российские сайты без VPN"
-            control={
-              <Switch
-                checked={draft.russiaDirect ?? false}
-                onChange={(e) => change({ russiaDirect: e.target.checked })}
-              />
-            }
-          />
-          <Typography variant="body2" color="text.secondary">
-            Банки, Госуслуги и многие российские сервисы не открываются через
-            зарубежный VPN. Пока переключатель включен, такие сайты всегда
-            открываются напрямую, даже в программах с VPN.
-          </Typography>
-        </Box>
         <Divider />
         <Box component="section">
           <Stack
@@ -372,82 +312,6 @@ export default function PersonalRoutingPage() {
               </Stack>
             )
           })}
-        </Box>
-        <Box component="details">
-          <Typography
-            component="summary"
-            sx={{ cursor: 'pointer', fontWeight: 600, py: 1 }}
-          >
-            Отдельное подключение для сайта
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>
-            Например, браузер работает без VPN, а выбранный сайт открывается
-            через VPN. Выбор для сайта действует во всех программах и важнее
-            выбора для программы.
-          </Typography>
-          {draft.routes
-            .filter((route) => route.match === 'domain')
-            .map((route) => (
-              <Stack
-                key={route.id}
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={2}
-                sx={{ alignItems: 'center', py: 1 }}
-              >
-                <Typography sx={{ flex: 1 }}>{route.value}</Typography>
-                <Box sx={{ width: { xs: '100%', sm: 260 } }}>
-                  <RouteChoice
-                    label={`Подключение для ${route.value}`}
-                    allowBlock
-                    value={route.target}
-                    sources={sources}
-                    onChange={(target) =>
-                      change({
-                        routes: draft.routes.map((item) =>
-                          item.id === route.id ? { ...item, target } : item,
-                        ),
-                      })
-                    }
-                  />
-                </Box>
-                <Tooltip title="Убрать отдельный выбор для сайта">
-                  <IconButton
-                    aria-label={`Убрать отдельный выбор для ${route.value}`}
-                    onClick={() =>
-                      change({
-                        routes: draft.routes.filter(
-                          (item) => item.id !== route.id,
-                        ),
-                      })
-                    }
-                  >
-                    <CloseRounded />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            ))}
-          <Box component="form" onSubmit={addSite} sx={{ mt: 2 }}>
-            <Stack spacing={2}>
-              {siteError && <Alert severity="error">{siteError}</Alert>}
-              <TextField
-                label="Адрес сайта"
-                placeholder="example.com"
-                value={site}
-                onChange={(e) => setSite(e.target.value)}
-                required
-              />
-              <RouteChoice
-                label="Подключение для сайта"
-                allowBlock
-                value={siteTarget}
-                sources={sources}
-                onChange={setSiteTarget}
-              />
-              <Button type="submit" variant="outlined">
-                Добавить сайт
-              </Button>
-            </Stack>
-          </Box>
         </Box>
       </Stack>
     </BasePage>

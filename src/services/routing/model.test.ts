@@ -7,6 +7,7 @@ import {
   readConnection,
   routeRules,
   serverTarget,
+  siteAddress,
 } from './model'
 
 const route = {
@@ -224,6 +225,42 @@ describe('personal routing compilation', () => {
       [],
     )
     expect(result.rules[2]).toBe('DOMAIN-SUFFIX,example.com,REJECT')
+  })
+  it('reads a site from a pasted link and covers its subdomains', () => {
+    expect(siteAddress('https://www.Google.com:443/store?q=1#x')).toEqual({
+      name: 'google.com',
+      value: 'google.com',
+    })
+    expect(siteAddress('*.store.google.com.').value).toBe('store.google.com')
+    expect(siteAddress('госуслуги.рф')).toEqual({
+      name: 'госуслуги.рф',
+      value: 'xn--c1aapkosapc.xn--p1ai',
+    })
+    for (const wrong of ['google', '192.168.1.1', '[::1]', 'a b.com', ''])
+      expect(() => siteAddress(wrong)).toThrow()
+  })
+  it('lets a chosen subdomain override its site', () => {
+    const site = (value: string, target: string) => ({
+      ...route,
+      id: value,
+      match: 'domain' as const,
+      value,
+      target,
+    })
+    const result = compileWorkspace(
+      {
+        ...emptyWorkspace(),
+        routes: [
+          site('google.com', 'REJECT'),
+          site('store.google.com', 'DIRECT'),
+        ],
+      },
+      [],
+    )
+    expect(result.rules.slice(2, 4)).toEqual([
+      'DOMAIN-SUFFIX,store.google.com,DIRECT',
+      'DOMAIN-SUFFIX,google.com,REJECT',
+    ])
   })
   it('sends UDP through the VPN instead of leaking it directly', () => {
     const result = compileWorkspace(

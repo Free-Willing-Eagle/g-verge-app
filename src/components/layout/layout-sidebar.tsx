@@ -1,6 +1,7 @@
 import {
   AppsRounded,
   ComputerOutlined,
+  LanguageOutlined,
   SettingsOutlined,
   WifiOutlined,
 } from '@mui/icons-material'
@@ -49,6 +50,15 @@ export const LayoutSidebar = ({ isDark, isCollapsed }: LayoutSidebarProps) => {
           icon={[<AppsRounded key="app" />, <AppsRounded key="app-alt" />]}
         >
           Программы
+        </LayoutItem>
+        <LayoutItem
+          to="/sites"
+          icon={[
+            <LanguageOutlined key="sites" />,
+            <LanguageOutlined key="sites-alt" />,
+          ]}
+        >
+          Сайты
         </LayoutItem>
         <LayoutItem
           to="/my-connections"

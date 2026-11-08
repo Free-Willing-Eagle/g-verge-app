@@ -98,9 +98,12 @@ if [ -f "$backup" ]; then
         *) legacy_backup=true ;;
     esac
 fi
+# The list set by earlier releases; its managed backup already holds the real DNS.
+previous_placeholder=$'114.114.114.114\n223.5.5.5\n1.1.1.1'
 if [ "$original_dns" != "$1" ]; then
     # Only an unmarked historical backup owns the old single-address placeholder.
-    if [ "$original_dns" != "114.114.114.114" ] || [ "$legacy_backup" != true ]; then
+    if { [ "$original_dns" != "114.114.114.114" ] || [ "$legacy_backup" != true ]; } &&
+        { [ "$original_dns" != "$previous_placeholder" ] || [ ! -f "$backup" ]; }; then
         save_backup "$original_dns" || exit 1
         legacy_backup=false
     fi

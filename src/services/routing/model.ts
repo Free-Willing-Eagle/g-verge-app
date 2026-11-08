@@ -49,6 +49,8 @@ const russiaRules = [
   'GEOIP,RU,DIRECT,no-resolve',
 ]
 
+const firefoxCanary = 'use-application-dns.net'
+
 const invalidField = /[,\r\n]/
 
 function field(value: string, label: string): string {
@@ -60,6 +62,42 @@ function field(value: string, label: string): string {
 
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const domainPattern =
+  /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i
+
+/** Accepts a pasted link or a bare address; the rule covers the site with all its subdomains. */
+export function siteAddress(input: string): { name: string; value: string } {
+  const name = input
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+    .replace(/[/?#].*$/, '')
+    .replace(/^.*@/, '')
+    .replace(/:\d*$/, '')
+    .replace(/^(?:\*?\.)+/, '')
+    .replace(/\.+$/, '')
+    // www would leave the bare site and its other subdomains outside the rule.
+    .replace(/^www\./, '')
+  let value = ''
+  try {
+    // Converts Cyrillic and other national addresses to the form used in DNS.
+    value = new URL(`http://${name}`).hostname
+  } catch {}
+  if (
+    !domainPattern.test(value) ||
+    !value.includes('.') ||
+    /^[\d.]+$/.test(value)
+  ) {
+    throw new Error(
+      'Укажи адрес сайта, например google.com, или вставь ссылку на страницу.',
+    )
+  }
+  return { name, value }
+}
+
+export const isSubdomain = (value: string, parent: string) =>
+  value.endsWith(`.${parent}`)
 
 // Safari and other system apps run from this sealed volume; /Applications holds only a link.
 const cryptexPrefix = '(?:/System/Volumes/Preboot/Cryptexes/App/System)?'
@@ -105,11 +143,7 @@ export function routeRules(route: AppRoute): string[] {
     case 'process':
       return [`PROCESS-NAME,${value},${target}`]
     case 'domain':
-      if (
-        !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(
-          value,
-        )
-      ) {
+      if (!domainPattern.test(value)) {
         throw new Error('Укажи домен без https:// и пути страницы.')
       }
       return [`DOMAIN-SUFFIX,${value},${target}`]
@@ -382,6 +416,7 @@ export function compileWorkspace(
         '+.msftncsi.com',
         'time.apple.com',
         '+.time.apple.com',
+        firefoxCanary,
       ],
       // With fake-ip the app replaces the Mac's DNS with a placeholder, so 'system' would no longer mean the router.
       'default-nameserver': ['77.88.8.8', '8.8.8.8'],
@@ -389,11 +424,13 @@ export function compileWorkspace(
         'https://common.dot.dns.yandex.net/dns-query',
         'https://dns.google/dns-query',
       ],
-      ...(workspace.preserveTailscale
-        ? {
-            'nameserver-policy': { '+.ts.net': '100.100.100.100' },
-          }
-        : {}),
+      'nameserver-policy': {
+        // Firefox then keeps its own encrypted DNS off, so its sites are recognised by name like in other browsers.
+        [firefoxCanary]: 'rcode://name_error',
+        ...(workspace.preserveTailscale
+          ? { '+.ts.net': '100.100.100.100' }
+          : {}),
+      },
     },
     // Browsers look up real IPv6 addresses through their own secure DNS. On networks without IPv6 such a
     // connection dies after the tunnel accepts it, so the site name from the handshake is dialed instead.
