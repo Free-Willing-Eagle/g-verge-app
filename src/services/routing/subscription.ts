@@ -125,3 +125,64 @@ async function expandProviders(
   delete result['proxy-providers']
   return result
 }
+
+const amneziaKeys = ['jc', 'jmin', 'jmax', 's1', 's2', 'h1', 'h2', 'h3', 'h4']
+
+/** Reads a WireGuard or AmneziaWG .conf file, the format VPN services hand out instead of a link. */
+export function parseWireGuard(text: string): Record<string, unknown> {
+  const sections: Record<string, Record<string, string>[]> = {}
+  let current: Record<string, string> | null = null
+  for (const raw of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const line = raw.replace(/[#;].*$/, '').trim()
+    if (!line) continue
+    const header = /^\[(\w+)\]$/.exec(line)
+    if (header) {
+      current = {}
+      ;(sections[header[1].toLowerCase()] ??= []).push(current)
+      continue
+    }
+    const pair = /^(\w+)\s*=\s*(.+)$/.exec(line)
+    if (pair && current) current[pair[1].toLowerCase()] = pair[2].trim()
+  }
+  const own = sections.interface?.[0]
+  const peer = sections.peer?.[0]
+  const endpoint = /^\[?([^\]]+?)\]?:(\d+)$/.exec(peer?.endpoint ?? '')
+  if (!own?.privatekey || !peer?.publickey || !endpoint || !own.address)
+    throw new SubscriptionError(
+      'Это не файл WireGuard. Скачай в кабинете VPN-сервиса файл настроек WireGuard (.conf).',
+    )
+  const list = (value = '') =>
+    value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  const addresses = list(own.address).map((item) => item.replace(/\/\d+$/, ''))
+  const dns = list(own.dns)
+  const amnezia = Object.fromEntries(
+    amneziaKeys
+      .filter((key) => own[key] !== undefined)
+      .map((key) => [key, Number(own[key])]),
+  )
+  return {
+    name: 'WireGuard',
+    type: 'wireguard',
+    server: endpoint[1],
+    port: Number(endpoint[2]),
+    ip: addresses.find((item) => !item.includes(':')),
+    ipv6: addresses.find((item) => item.includes(':')),
+    'private-key': own.privatekey,
+    'public-key': peer.publickey,
+    ...(peer.presharedkey ? { 'pre-shared-key': peer.presharedkey } : {}),
+    'allowed-ips': list(peer.allowedips).length
+      ? list(peer.allowedips)
+      : ['0.0.0.0/0', '::/0'],
+    ...(own.mtu ? { mtu: Number(own.mtu) } : {}),
+    ...(peer.persistentkeepalive
+      ? { 'persistent-keepalive': Number(peer.persistentkeepalive) }
+      : {}),
+    udp: true,
+    // Site names are then looked up inside the tunnel, not by the local provider.
+    ...(dns.length ? { dns, 'remote-dns-resolve': true } : {}),
+    ...(Object.keys(amnezia).length ? { 'amnezia-wg-option': amnezia } : {}),
+  }
+}

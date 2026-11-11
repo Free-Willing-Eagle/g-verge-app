@@ -1,4 +1,5 @@
 import { open } from '@tauri-apps/plugin-dialog'
+import { readFile } from '@tauri-apps/plugin-fs'
 import { dump, load } from 'js-yaml'
 import {
   closeAllConnections,
@@ -22,12 +23,17 @@ import {
   compileWorkspace,
   emptyWorkspace,
   readConnection,
+  targetSource,
   workspaceDescription,
   workspaceKey,
   type Workspace,
 } from './model'
 import { isWindows } from './platform'
-import { downloadSubscription, subscriptionKey } from './subscription'
+import {
+  downloadSubscription,
+  parseWireGuard,
+  subscriptionKey,
+} from './subscription'
 
 export const serverExitDescription = 'g-verge:tailscale-exit'
 
@@ -139,7 +145,8 @@ export async function applyWorkspace(workspace: Workspace) {
             ...workspace.routes
               .filter((route) => route.enabled)
               .map((route) => route.target),
-          ].some((target) => target.startsWith(`connection-${id}`))
+            ...Object.values(workspace.chains ?? {}),
+          ].some((target) => targetSource(target) === id)
           if (used && !tailscale)
             throw new Error(
               `${connection.name}: Tailscale на этом компьютере не подключен. Включи Tailscale и сохрани выбор заново.`,
@@ -246,13 +253,18 @@ export async function removeConnection(uid: string, workspace: Workspace) {
   const used = [
     workspace.defaultTarget,
     ...workspace.routes.map((route) => route.target),
-  ].some(
-    (target) =>
-      target === `connection-${uid}` || target.startsWith(`connection-${uid}/`),
-  )
+  ].some((target) => targetSource(target) === uid)
   if (used)
     throw new Error(
       'Это подключение выбрано для программ или сайтов. Сначала выбери для них другое и сохрани выбор.',
+    )
+  if (
+    Object.values(workspace.chains ?? {}).some(
+      (via) => targetSource(via) === uid,
+    )
+  )
+    throw new Error(
+      'Через это подключение работает другой VPN. Сначала выбери для него «Напрямую» и сохрани выбор.',
     )
   return mutate(() => deleteProfile(uid), {
     id: 'personal-routing-workspace',
@@ -270,6 +282,24 @@ export async function chooseApplication() {
     filters: [{ name: 'Программы', extensions: [isWindows ? 'exe' : 'app'] }],
   })
   return typeof selection === 'string' ? selection : null
+}
+
+/** VPN services that hand out WireGuard give a .conf file instead of a link. */
+export async function chooseWireGuardFile() {
+  const selection = await open({
+    title: 'Выбери файл WireGuard',
+    multiple: false,
+    directory: false,
+    filters: [{ name: 'WireGuard', extensions: ['conf'] }],
+  })
+  if (typeof selection !== 'string') return null
+  return {
+    name: selection
+      .split(/[/\\]/)
+      .pop()!
+      .replace(/\.conf$/i, ''),
+    text: new TextDecoder().decode(await readFile(selection)),
+  }
 }
 
 export async function importPersonalVpn(name: string, link: string) {
@@ -290,7 +320,9 @@ export async function importPersonalVpn(name: string, link: string) {
         )
       const config = /^https?:\/\//i.test(value)
         ? await downloadSubscription(value)
-        : { proxies: [parseUri(value)] }
+        : /^\s*\[interface\]/im.test(value)
+          ? { proxies: [{ ...parseWireGuard(value), name: name.trim() }] }
+          : { proxies: [parseUri(value)] }
       readConnection('new', name, config)
       await createProfile(
         { type: 'local', name: name.trim(), desc: 'g-verge:vpn' },

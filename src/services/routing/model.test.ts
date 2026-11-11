@@ -275,4 +275,51 @@ describe('personal routing compilation', () => {
     )
     expect(result.proxies[0].udp).toBe(true)
   })
+
+  it('reaches a blocked VPN through another one and refuses loops', () => {
+    const blocked = readConnection('blocked', 'Windscribe', {
+      proxies: [
+        { name: 'Amsterdam', type: 'wireguard', server: '192.0.2.1', port: 1 },
+      ],
+      'proxy-providers': {
+        nodes: { type: 'http', url: 'https://example.com/p', path: './p.yaml' },
+      },
+    })
+    const working = readConnection('working', 'VPN', {
+      proxies: [
+        { name: 'Moscow', type: 'vless', server: '192.0.2.2', port: 443 },
+      ],
+    })
+    const via = serverTarget('working', 'Moscow')
+    const compile = (chains: Record<string, string>, list = [blocked]) =>
+      compileWorkspace({ ...emptyWorkspace(), chains }, [...list, working])
+    const result = compile({ blocked: via })
+    const node = (name: string) =>
+      result.proxies.find((item) => item.name === name)
+    expect(node('connection-blocked/Amsterdam')?.['dialer-proxy']).toBe(via)
+    expect(node('connection-working/Moscow')?.['dialer-proxy']).toBeUndefined()
+    expect(
+      result['proxy-providers']['connection-blocked/nodes'].override,
+    ).toMatchObject({ 'dialer-proxy': via })
+    expect(result['proxy-groups'].some((group) => group.name === via)).toBe(
+      true,
+    )
+    expect(() =>
+      compile({
+        blocked: connectionTarget('working'),
+        working: connectionTarget('blocked'),
+      }),
+    ).toThrow('друг через друга')
+    expect(() => compile({ blocked: connectionTarget('blocked') })).toThrow(
+      'друг через друга',
+    )
+    expect(() => compile({ working: connectionTarget('gone') })).toThrow(
+      'больше недоступно',
+    )
+    expect(() =>
+      compile({ blocked: connectionTarget('working') }, [
+        { ...blocked, bindInterface: 'utun5' },
+      ]),
+    ).toThrow('Tailscale')
+  })
 })

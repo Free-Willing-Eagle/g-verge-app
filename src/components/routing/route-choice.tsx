@@ -16,6 +16,9 @@ export function RouteChoice({
   sources,
   inherit = false,
   allowBlock = false,
+  directLabel = 'Без VPN',
+  exclude,
+  size = 'small',
 }: {
   label: string
   value: string
@@ -23,6 +26,10 @@ export function RouteChoice({
   sources: VisibleSource[]
   inherit?: boolean
   allowBlock?: boolean
+  directLabel?: string
+  /** Connections that must not be offered, for example the one being configured. */
+  exclude?: Set<string>
+  size?: 'small' | 'medium'
 }) {
   const selected = sources.find(
     (source) =>
@@ -33,14 +40,16 @@ export function RouteChoice({
   const primary = selected?.uid ? connectionTarget(selected.uid) : value
   const choices = [
     ...(inherit ? [{ value: 'DEFAULT', name: 'Как остальные программы' }] : []),
-    { value: 'DIRECT', name: 'Без VPN' },
+    { value: 'DIRECT', name: directLabel },
     ...(allowBlock ? [{ value: 'REJECT', name: 'Без интернета' }] : []),
-    ...sources.map((source) => ({
-      value: connectionTarget(source.uid!),
-      name: source.viaServer
-        ? `${source.name ?? 'Мой сервер'} (Tailscale)`
-        : (source.name ?? 'Мое подключение'),
-    })),
+    ...sources
+      .filter((source) => !exclude?.has(source.uid!))
+      .map((source) => ({
+        value: connectionTarget(source.uid!),
+        name: source.viaServer
+          ? `${source.name ?? 'Мой сервер'} (Tailscale)`
+          : (source.name ?? 'Мое подключение'),
+      })),
   ]
   const nodes = selected?.nodes ?? []
   return (
@@ -48,7 +57,7 @@ export function RouteChoice({
       <TextField
         select
         fullWidth
-        size="small"
+        size={size}
         label={label}
         value={primary}
         onChange={(e) => onChange(e.target.value)}
@@ -70,7 +79,7 @@ export function RouteChoice({
         <TextField
           select
           fullWidth
-          size="small"
+          size={size}
           label="Страна и подключение"
           value={value}
           onChange={(e) => onChange(e.target.value)}

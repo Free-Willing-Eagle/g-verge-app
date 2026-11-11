@@ -22,6 +22,13 @@ const demoSources = [
     file: 'spare.yaml',
     updated: 0,
   },
+  {
+    uid: 'blocked',
+    type: 'local',
+    name: 'Windscribe',
+    file: 'blocked.yaml',
+    updated: 0,
+  },
 ]
 const demoNodes = {
   main: [
@@ -30,6 +37,7 @@ const demoNodes = {
     'Нидерланды · Амстердам',
   ],
   spare: ['Франция · Париж', 'Германия · Франкфурт', 'Великобритания · Лондон'],
+  blocked: ['Нидерланды · Амстердам'],
 }
 const demoOn = new URLSearchParams(location.search).has('on')
 mockIPC((command, args) => {
@@ -94,7 +102,8 @@ mockIPC((command, args) => {
             version: 1,
             defaultTarget: 'DIRECT',
             preserveTailscale: true,
-            sourceIds: ['main', 'spare'],
+            sourceIds: ['main', 'spare', 'blocked'],
+            chains: { blocked: 'connection-main' },
             routes: [
               {
                 id: 'demo-claude',

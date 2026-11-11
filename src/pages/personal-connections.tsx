@@ -1,4 +1,8 @@
-import { AddRounded, RefreshRounded } from '@mui/icons-material'
+import {
+  AddRounded,
+  RefreshRounded,
+  UploadFileRounded,
+} from '@mui/icons-material'
 import {
   Alert,
   Box,
@@ -17,9 +21,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { BasePage } from '@/components/base'
+import { RouteChoice } from '@/components/routing/route-choice'
 import { TunnelForm } from '@/components/routing/tunnel-form'
 import { useRoutingWorkspace } from '@/hooks/use-routing-workspace'
+import { chainedThrough, targetSource } from '@/services/routing/model'
 import {
+  chooseWireGuardFile,
   importPersonalVpn,
   refreshPersonalVpn,
   removeConnection,
@@ -42,20 +49,23 @@ export default function PersonalConnectionsPage() {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [link, setLink] = useState('')
+  const [file, setFile] = useState<{ name: string; text: string } | null>(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [serverOpen, setServerOpen] = useState(false)
+  const [chaining, setChaining] = useState<string[]>([])
   const vpns = data?.sources.filter((source) => !source.viaServer)
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     setWorking(true)
     setError('')
     try {
-      await importPersonalVpn(name, link)
+      await importPersonalVpn(name, file?.text ?? link)
       await refetch()
       setAdding(false)
       setLink('')
+      setFile(null)
       setName('')
       setMessage('VPN добавлен. Теперь его можно выбрать для любой программы.')
     } catch (failure) {
@@ -67,6 +77,23 @@ export default function PersonalConnectionsPage() {
     } finally {
       setWorking(false)
     }
+  }
+  const pickFile = async () => {
+    setError('')
+    try {
+      const chosen = await chooseWireGuardFile()
+      if (!chosen) return
+      setFile(chosen)
+      if (!name.trim()) setName(chosen.name)
+    } catch {
+      setError('Не удалось прочитать файл. Скачай его заново и повтори.')
+    }
+  }
+  const setChain = (uid: string, via: string) => {
+    const chains = Object.fromEntries(
+      Object.entries(draft?.chains ?? {}).filter(([id]) => id !== uid),
+    )
+    change({ chains: via === 'DIRECT' ? chains : { ...chains, [uid]: via } })
   }
   return (
     <BasePage
@@ -87,7 +114,8 @@ export default function PersonalConnectionsPage() {
       <Stack spacing={3} sx={{ maxWidth: 960, mx: 'auto', pb: 4 }}>
         <Typography>
           Здесь хранятся твои VPN. У каждого можно выбрать страну, а затем
-          использовать его для нужных программ.
+          использовать его для нужных программ. Если провайдер блокирует VPN,
+          его можно подключать через другой.
         </Typography>
         {saveError && <Alert severity="error">{saveError}</Alert>}
         {error && !adding && <Alert severity="error">{error}</Alert>}
@@ -233,6 +261,44 @@ export default function PersonalConnectionsPage() {
                 ссылке, чтобы выбирать страны в простом интерфейсе.
               </Typography>
             )}
+            {(() => {
+              if (source.problem || !data) return null
+              const exclude = chainedThrough(source.uid!, draft?.chains)
+              if (data.sources.every((item) => exclude.has(item.uid!)))
+                return null
+              const via = draft?.chains?.[source.uid!]
+              if (!via && !chaining.includes(source.uid!))
+                return (
+                  <Button
+                    size="small"
+                    onClick={() => setChaining([...chaining, source.uid!])}
+                    sx={{ mt: 1 }}
+                  >
+                    Подключать через другой VPN
+                  </Button>
+                )
+              const hop = data.sources.find(
+                (item) => via && item.uid === targetSource(via),
+              )
+              return (
+                <Stack spacing={1} sx={{ mt: 2, maxWidth: 440 }}>
+                  <RouteChoice
+                    label="Как подключаться к этому VPN"
+                    directLabel="Напрямую"
+                    size="medium"
+                    value={via ?? 'DIRECT'}
+                    sources={data.sources}
+                    exclude={exclude}
+                    onChange={(target) => setChain(source.uid!, target)}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {hop
+                      ? `Сначала подключается ${hop.name}, а уже через него ${source.name}.`
+                      : `Выбери VPN, который работает у тебя без блокировок. ${source.name} будет подключаться через него.`}
+                  </Typography>
+                </Stack>
+              )
+            })()}
           </Box>
         ))}
         {!!vpns?.length && (
@@ -275,6 +341,7 @@ export default function PersonalConnectionsPage() {
               <Typography variant="body2">
                 Скопируй ссылку подписки в кабинете или боте своего VPN-сервиса.
                 Можно использовать ту же ссылку, которую ты добавлял в Happ.
+                Если сервис выдает файл WireGuard, выбери его вместо ссылки.
               </Typography>
               {error && <Alert severity="error">{error}</Alert>}
               <TextField
@@ -285,15 +352,39 @@ export default function PersonalConnectionsPage() {
                 required
                 autoFocus
               />
-              <TextField
-                label="Ссылка от VPN-сервиса"
-                type="password"
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                required
-                autoComplete="off"
-                helperText="Ссылка сохраняется только на этом компьютере. Она дает доступ к твоему VPN, не пересылай ее другим."
-              />
+              {file ? (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center' }}
+                >
+                  <Typography sx={{ flex: 1, overflowWrap: 'anywhere' }}>
+                    Файл WireGuard: {file.name}.conf
+                  </Typography>
+                  <Button onClick={() => setFile(null)} disabled={working}>
+                    Убрать
+                  </Button>
+                </Stack>
+              ) : (
+                <TextField
+                  label="Ссылка от VPN-сервиса"
+                  type="password"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  required
+                  autoComplete="off"
+                  helperText="Ссылка сохраняется только на этом компьютере. Она дает доступ к твоему VPN, не пересылай ее другим."
+                />
+              )}
+              {!file && (
+                <Button
+                  startIcon={<UploadFileRounded />}
+                  onClick={() => void pickFile()}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  Выбрать файл WireGuard
+                </Button>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions>

@@ -25,6 +25,8 @@ export type Workspace = {
   sourceIds: string[]
   appPaths?: string[]
   serverDefaults?: Record<string, string>
+  /** A connection reached through another one, for VPNs blocked on the local network. */
+  chains?: Record<string, string>
   russiaDirect?: boolean
 }
 
@@ -222,6 +224,30 @@ export function connectionTarget(id: string): string {
   return `connection-${field(id, 'Идентификатор')}`
 }
 
+/** The connection a target belongs to: the whole VPN or one of its countries. */
+export const targetSource = (target: string) =>
+  /^connection-([^/]+)(?:\/node\/.*)?$/.exec(target)?.[1] ?? null
+
+/** Connections that already reach the internet through the given one, directly or along a chain. */
+export function chainedThrough(
+  id: string,
+  chains: Record<string, string> = {},
+): Set<string> {
+  const found = new Set<string>([id])
+  let grown = true
+  while (grown) {
+    grown = false
+    for (const [source, via] of Object.entries(chains)) {
+      const hop = targetSource(via)
+      if (hop && found.has(hop) && !found.has(source)) {
+        found.add(source)
+        grown = true
+      }
+    }
+  }
+  return found
+}
+
 export function compileWorkspace(
   workspace: Workspace,
   connections: Connection[],
@@ -257,6 +283,32 @@ export function compileWorkspace(
       throw new Error('Выбранное подключение больше недоступно. Выбери другое.')
   }
   checkTarget(workspace.defaultTarget)
+  const chains = Object.fromEntries(
+    Object.entries(workspace.chains ?? {}).filter(([id]) =>
+      connections.some((item) => item.id === id),
+    ),
+  )
+  for (const [id, via] of Object.entries(chains)) {
+    const connection = connections.find((item) => item.id === id)!
+    const hop = targetSource(via)
+    try {
+      if (!hop) throw new Error()
+      checkTarget(via)
+    } catch {
+      throw new Error(
+        `${connection.name}: подключение, через которое он работает, больше недоступно. Выбери другое в разделе «Мои VPN».`,
+      )
+    }
+    // A Tailscale address is reachable only through Tailscale itself, never through a VPN.
+    if (connection.bindInterface)
+      throw new Error(
+        `${connection.name}: сервер Tailscale подключается только напрямую.`,
+      )
+    if (chainedThrough(id, chains).has(hop))
+      throw new Error(
+        `${connection.name}: подключения не могут работать друг через друга. Для одного из них выбери «Напрямую».`,
+      )
+  }
   const seen = new Set<string>()
   const rules: string[] = []
   if (workspace.preserveTailscale) {
@@ -320,6 +372,10 @@ export function compileWorkspace(
         ...(connection.bindInterface
           ? { 'interface-name': connection.bindInterface }
           : {}),
+        // A node chained inside its own subscription keeps that chain; its first hop carries this one.
+        ...(chains[connection.id] && !node['dialer-proxy']
+          ? { 'dialer-proxy': chains[connection.id] }
+          : {}),
       }
       const dialer = node['dialer-proxy']
       if (
@@ -343,6 +399,9 @@ export function compileWorkspace(
           override: {
             ...(provider.override as Record<string, unknown> | undefined),
             udp: true,
+            ...(chains[connection.id]
+              ? { 'dialer-proxy': chains[connection.id] }
+              : {}),
           },
           path: `./providers/${encodeURIComponent(target)}-${encodeURIComponent(name)}.yaml`,
         }
